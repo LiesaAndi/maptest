@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Map - Passau</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js"></script>
+    <style>
+        #map { height: 600px; width: 100%; }
+    </style>
+</head>
+<body>
+
+<h2>Interactive Map - Passau</h2>
+<p>Click on the map to add a marker. Click a newly added marker to remove it.</p>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+    // Firebase Configuration (Replace with your actual Firebase config)
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Initialize the map with view restricted to Passau, Germany
+    var map = L.map('map', {
+        center: [48.5738, 13.4561], // Passau city center
+        zoom: 13,
+        minZoom: 12,
+        maxZoom: 18,
+        maxBounds: [
+            [48.5400, 13.3490], // Southwest corner
+            [48.5990, 13.5150]  // Northeast corner
+        ],
+        maxBoundsViscosity: 1.0
+    });
+
+    // Add OpenStreetMap tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const newMarkers = []; // Array to store only newly added markers
+
+    // Add marker on click and track it
+    function onMapClick(e) {
+        var marker = L.marker(e.latlng, { draggable: true }).addTo(map)
+            .bindPopup("New Marker (Click to Remove)").openPopup();
+
+        newMarkers.push(marker); // Track only new markers
+
+        // Allow only new markers to be removed by clicking on them
+        marker.on("click", function () {
+            map.removeLayer(marker);
+            const index = newMarkers.indexOf(marker);
+            if (index > -1) {
+                newMarkers.splice(index, 1); // Remove from tracking array
+            }
+        });
+
+        // Save marker to Firebase
+        saveMarker(e.latlng.lat, e.latlng.lng);
+    }
+
+    map.on('click', onMapClick);
+
+    // Save marker directly to Firebase Firestore
+    function saveMarker(lat, lng) {
+        db.collection("markers").add({
+            latitude: lat,
+            longitude: lng
+        })
+        .then(() => console.log("Marker saved to Firestore"))
+        .catch(error => console.error("Error saving marker:", error));
+    }
+
+    // Load markers from Firestore on page load (these cannot be removed)
+    db.collection("markers").get().then((querySnapshot) => {
+        querySnapshot.forEach((doc) => {
+            const markerData = doc.data();
+            L.marker([markerData.latitude, markerData.longitude]).addTo(map);
+        });
+    }).catch(error => console.error("Error loading markers:", error));
+</script>
+
+</body>
+</html>
