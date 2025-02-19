@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map { height: 600px; width: 100%; }
+    </style>
+</head>
+<body>
+
+<h2>Interactive Map - Add Markers</h2>
+<p>Click on the map to add a marker.</p>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+    // Initialize the map (New York City as default)
+    var map = L.map('map').setView([40.7128, -74.0060], 10);
+
+    // Add OpenStreetMap tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Add marker on click
+    function onMapClick(e) {
+        var marker = L.marker(e.latlng, { draggable: true }).addTo(map)
+            .bindPopup("New Marker Added!")
+            .openPopup();
+
+        // Save marker to the backend
+        saveMarker(e.latlng.lat, e.latlng.lng);
+    }
+
+    map.on('click', onMapClick);
+
+    // Save marker to Firebase via backend
+    function saveMarker(lat, lng) {
+        fetch('https://maptest-0ybm.onrender.com/api/save-marker', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ latitude: lat, longitude: lng })
+        })
+        .then(response => response.json())
+        .then(data => console.log("Marker saved:", data))
+        .catch(error => console.error("Error saving marker:", error));
+    }
+
+    // Load markers from Firebase via backend
+    fetch('https://maptest-0ybm.onrender.com/api/get-markers')
+        .then(response => response.json())
+        .then(markers => {
+            markers.forEach(markerData => {
+                L.marker([markerData.latitude, markerData.longitude]).addTo(map);
+            });
+        })
+        .catch(error => console.error("Error loading markers:", error));
+</script>
+
+</body>
+</html>
